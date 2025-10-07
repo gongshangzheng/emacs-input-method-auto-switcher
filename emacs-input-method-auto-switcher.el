@@ -15,7 +15,7 @@ Can be 'ibus, 'fcitx, 'fcitx5, 'squirrel (macOS only), or 'auto-detect."
 
 (defcustom emacs-input-method-auto-switcher-non-latin-engines
   '("im.rime.inputmethod.Squirrel.Hans"  ; Rime Chinese (macOS)
-    "com.apple.keylayout.ABC"             ; ABC (macOS)
+    "com.apple.keylayout.French-PC"       ; French (macOS)
     "rime"                                 ; Rime (Linux)
     "pinyin"                               ; Pinyin
     "mozc"                                 ; Japanese
