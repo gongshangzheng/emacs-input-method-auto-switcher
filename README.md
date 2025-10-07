@@ -1,6 +1,6 @@
 # Emacs 输入法自动切换器
 
-[English Version](./README.md)
+[English Version](./README-en.md)
 
 一个 Emacs 扩展包，可以在 Emacs 获得或失去焦点时自动切换输入法，帮助你在编程时无缝地在英文和其他语言之间切换。
 
@@ -122,6 +122,47 @@ im-select
 ```elisp
 (global-set-key (kbd "C-\\") #'emacs-input-method-auto-switcher-toggle-with-latin)
 ```
+
+## 使用建议
+
+### 推荐使用 emacs-rime 进行中文输入
+
+对于需要在 Emacs 中输入中文的用户，我们**强烈推荐**使用 [emacs-rime](https://github.com/DogLooksGood/emacs-rime) 来管理 Emacs 内的中文输入。
+
+#### 为什么推荐 emacs-rime？
+
+使用系统输入法在 Emacs 中输入中文时，经常会遇到以下问题：
+- 🚫 **按键冲突**：中文输入法可能会拦截 Emacs 的快捷键（如 `C-n`、`C-p` 等），导致无法正常使用
+- 😰 **切换麻烦**：频繁在编辑和输入中文之间切换时体验不佳
+- 🐛 **候选框问题**：系统输入法的候选框可能与 Emacs 界面不协调
+
+**emacs-rime 的优势**：
+- ✅ **完美集成**：作为 Emacs 的原生输入法，不会产生按键冲突
+- ✅ **无缝切换**：使用 `C-\` 即可在中英文之间快速切换，无需离开 Emacs
+- ✅ **体验一致**：候选框与 Emacs 界面完美融合
+- ✅ **功能强大**：支持 Rime 的全部功能（拼音、双拼、五笔等）
+
+#### 配合使用方案
+
+emacs-rime 与本包可以完美配合使用：
+- **在 Emacs 内**：使用 emacs-rime 进行中文输入（`C-\` 切换）
+- **在 Emacs 外**：使用系统输入法
+- **焦点切换时**：本包自动管理 Emacs 获得/失去焦点时的系统输入法状态
+
+#### 快速开始 emacs-rime
+
+```elisp
+;; Doom Emacs 用户在 packages.el 中添加
+(package! rime)
+
+;; 在 config.el 中配置
+(use-package rime
+  :custom
+  (default-input-method "rime")  ; 设置默认输入法
+  (rime-show-candidate 'posframe))  ; 使用 posframe 显示候选框
+```
+
+更多详细配置请参考：[emacs-rime 文档](https://github.com/DogLooksGood/emacs-rime)
 
 ## 工作原理
 

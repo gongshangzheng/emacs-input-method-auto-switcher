@@ -1,6 +1,6 @@
 # Emacs Input Method Auto Switcher
 
-[中文版](./README-cn.md)
+[中文版](./README.md)
 
 An Emacs package that automatically switches input methods when Emacs gains or loses focus, helping you seamlessly switch between English and other languages while coding.
 
@@ -122,6 +122,47 @@ You can also bind a key to manually toggle input methods:
 ```elisp
 (global-set-key (kbd "C-\\") #'emacs-input-method-auto-switcher-toggle-with-latin)
 ```
+
+## Recommendations
+
+### Recommended: Use emacs-rime for Chinese Input
+
+For users who need to input Chinese (or other CJK languages) in Emacs, we **strongly recommend** using [emacs-rime](https://github.com/DogLooksGood/emacs-rime) to manage input within Emacs.
+
+#### Why emacs-rime?
+
+Using system input methods for Chinese input in Emacs often causes problems:
+- 🚫 **Key Binding Conflicts**: System input methods may intercept Emacs keybindings (like `C-n`, `C-p`), breaking normal editing
+- 😰 **Context Switching**: Frequent switching between editing and Chinese input creates a poor user experience
+- 🐛 **Candidate Window Issues**: System input method candidate windows may not integrate well with Emacs interface
+
+**Benefits of emacs-rime**:
+- ✅ **Perfect Integration**: As a native Emacs input method, it avoids all key binding conflicts
+- ✅ **Seamless Switching**: Toggle between English and Chinese instantly with `C-\` without leaving Emacs
+- ✅ **Consistent Experience**: Candidate window integrates perfectly with Emacs UI
+- ✅ **Full-Featured**: Supports all Rime features (Pinyin, Shuangpin, Wubi, etc.)
+
+#### Combined Usage
+
+emacs-rime works perfectly with this package:
+- **Inside Emacs**: Use emacs-rime for Chinese input (toggle with `C-\`)
+- **Outside Emacs**: Use system input method
+- **Focus Changes**: This package automatically manages system input method state when Emacs gains/loses focus
+
+#### Quick Start with emacs-rime
+
+```elisp
+;; For Doom Emacs users, add to packages.el
+(package! rime)
+
+;; Configure in config.el
+(use-package rime
+  :custom
+  (default-input-method "rime")  ; Set default input method
+  (rime-show-candidate 'posframe))  ; Use posframe for candidate display
+```
+
+For more details, see: [emacs-rime documentation](https://github.com/DogLooksGood/emacs-rime)
 
 ## How It Works
 
