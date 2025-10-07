@@ -41,6 +41,16 @@ Can be 'ibus, 'fcitx, 'fcitx5, 'squirrel (macOS only), or 'auto-detect."
   "Check if im-select is available."
   (executable-find "im-select"))
 
+(defun emacs-input-method-auto-switcher--latin-engine ()
+  "Return a Latin input method engine string based on current framework/platform."
+  (let ((framework (if (eq emacs-input-method-auto-switcher-framework 'auto-detect)
+                       (emacs-input-method-auto-switcher--detect-framework)
+                     emacs-input-method-auto-switcher-framework)))
+    (pcase framework
+      ('squirrel "com.apple.keylayout.ABC")
+      ('fcitx5 "xkb:us::eng")
+      (_ "xkb:us::eng"))))
+
 (defun emacs-input-method-auto-switcher--get-current-engine ()
   "Get current input engine based on configured framework."
   (let ((framework (if (eq emacs-input-method-auto-switcher-framework 'auto-detect)
@@ -76,11 +86,12 @@ Can be 'ibus, 'fcitx, 'fcitx5, 'squirrel (macOS only), or 'auto-detect."
   "Switch to Latin input when Emacs gains focus."
   (setq emacs-input-method-auto-switcher--current-engine (emacs-input-method-auto-switcher--get-current-engine))
   (when (member emacs-input-method-auto-switcher--current-engine emacs-input-method-auto-switcher-non-latin-engines)
-    (if (eq system-type 'darwin)  ; 判断是否是 macOS 平台
-        (if (emacs-input-method-auto-switcher--detect-im-select)
-            (emacs-input-method-auto-switcher--set-engine "xkb:us::eng")  ; 使用 im-select 切换输入法
-          (message "im-select is not available. Cannot switch input method."))
-      (emacs-input-method-auto-switcher--set-engine "xkb:us::eng"))))  ; Linux 默认切换到拉丁输入法
+    (let ((latin (emacs-input-method-auto-switcher--latin-engine)))
+      (if (eq system-type 'darwin)  ; 判断是否是 macOS 平台
+          (if (emacs-input-method-auto-switcher--detect-im-select)
+              (emacs-input-method-auto-switcher--set-engine latin)
+            (message "im-select is not available. Cannot switch input method."))
+        (emacs-input-method-auto-switcher--set-engine latin)))))  ; 非 macOS 使用对应框架的拉丁输入法
 
 (defun emacs-input-method-auto-switcher-on-focus-out ()
   "Restore original input method when Emacs loses focus."
@@ -94,11 +105,12 @@ Can be 'ibus, 'fcitx, 'fcitx5, 'squirrel (macOS only), or 'auto-detect."
 (defun emacs-input-method-auto-switcher-toggle-with-latin ()
   "Switch to Latin before toggling input method."
   (interactive)
-  (if (eq system-type 'darwin)  ; 判断是否是 macOS 平台
-      (if (emacs-input-method-auto-switcher--detect-im-select)
-          (emacs-input-method-auto-switcher--set-engine "xkb:us::eng")
-        (message "im-select is not available. Cannot switch to Latin input."))
-    (emacs-input-method-auto-switcher--set-engine "xkb:us::eng"))  ; Linux 默认切换到拉丁输入法
+  (let ((latin (emacs-input-method-auto-switcher--latin-engine)))
+    (if (eq system-type 'darwin)  ; 判断是否是 macOS 平台
+        (if (emacs-input-method-auto-switcher--detect-im-select)
+            (emacs-input-method-auto-switcher--set-engine latin)
+          (message "im-select is not available. Cannot switch to Latin input."))
+      (emacs-input-method-auto-switcher--set-engine latin)))  ; 非 macOS 使用对应框架的拉丁输入法
   (toggle-input-method))
 
 ;;;###autoload
