@@ -69,19 +69,20 @@ One of the following input method frameworks:
 (setq emacs-input-method-auto-switcher-framework 'fcitx5)  ; Options: 'ibus, 'fcitx, 'fcitx5, 'squirrel
 ```
 
-### Configure Non-Latin Engines
+### Configure Latin Engines Whitelist
 
-Customize which input engines should trigger the auto-switch to Latin:
+By default, only the following Latin input methods will NOT trigger auto-switch (whitelist mode):
+- `com.apple.keylayout.ABC` - macOS Latin input
+- `xkb:us::eng` - Linux fcitx5 Latin input
+
+**All other input methods** (including Chinese, Japanese, Korean, etc.) will automatically switch to the corresponding Latin input method when Emacs gains focus.
+
+If you need to customize the whitelist (usually not necessary), you can modify:
 
 ```elisp
-(setq emacs-input-method-auto-switcher-non-latin-engines
-      '("im.rime.inputmethod.Squirrel.Hans"  ; Chinese (Rime on macOS)
-        "com.apple.keylayout.ABC"             ; ABC input
-        "rime"                                 ; Rime on Linux
-        "pinyin"                               ; Pinyin
-        "mozc"                                 ; Japanese
-        "anthy"                                ; Japanese
-        "kkc"))                                ; Japanese
+(setq emacs-input-method-auto-switcher-latin-engines
+      '("com.apple.keylayout.ABC"  ; macOS Latin input
+        "xkb:us::eng"))             ; Linux fcitx5 Latin input
 ```
 
 ### macOS Specific Configuration
@@ -199,12 +200,14 @@ brew install im-select
    which ibus          # or fcitx-remote, fcitx5-remote
    ```
 
-### Custom Input Method Not Recognized
-Add your input method identifier to `emacs-input-method-auto-switcher-non-latin-engines`:
+### Customize Latin Engines Whitelist
+If you need to add other input methods to the whitelist (to prevent auto-switching), you can modify:
 
 ```elisp
-(add-to-list 'emacs-input-method-auto-switcher-non-latin-engines "your-input-method-name")
+(add-to-list 'emacs-input-method-auto-switcher-latin-engines "your-latin-input-method-identifier")
 ```
+
+**Note**: Only Latin input methods should be added to the whitelist. Non-Latin input methods (Chinese, Japanese, etc.) should NOT be added to the whitelist, as they will automatically switch to Latin input.
 
 To find your input method identifier:
 - macOS: Run `im-select` in terminal

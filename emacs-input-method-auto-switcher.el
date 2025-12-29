@@ -13,16 +13,12 @@ Can be 'ibus, 'fcitx, 'fcitx5, 'squirrel (macOS only), or 'auto-detect."
                  (const squirrel)  ; macOS only
                  (const auto-detect)))
 
-(defcustom emacs-input-method-auto-switcher-non-latin-engines
-  '("im.rime.inputmethod.Squirrel.Hans"  ; Rime Chinese (macOS)
-    "com.apple.keylayout.French-PC"       ; French (macOS)
-    "rime"                                 ; Rime (Linux)
-    "pinyin"                               ; Pinyin
-    "mozc"                                 ; Japanese
-    "anthy"                                ; Japanese
-    "kkc"                                  ; Japanese
-    "fcitx-keyboard-us")                   ; Fcitx
-  "List of input engines that should trigger auto-switch to Latin."
+(defcustom emacs-input-method-auto-switcher-latin-engines
+  '("com.apple.keylayout.ABC"  ; macOS Latin input
+    "xkb:us::eng")              ; Linux fcitx5 Latin input
+  "List of Latin input engines that should NOT trigger auto-switch.
+Only these engines will remain unchanged when Emacs gains focus.
+All other input methods will be automatically switched to Latin."
   :type '(repeat string))
 
 (defvar emacs-input-method-auto-switcher--current-engine nil
@@ -83,9 +79,10 @@ Can be 'ibus, 'fcitx, 'fcitx5, 'squirrel (macOS only), or 'auto-detect."
         (_ nil)))))
 
 (defun emacs-input-method-auto-switcher-on-focus-in ()
-  "Switch to Latin input when Emacs gains focus."
+  "Switch to Latin input when Emacs gains focus.
+Only skip switching if current engine is in the Latin engines whitelist."
   (setq emacs-input-method-auto-switcher--current-engine (emacs-input-method-auto-switcher--get-current-engine))
-  (when (member emacs-input-method-auto-switcher--current-engine emacs-input-method-auto-switcher-non-latin-engines)
+  (unless (member emacs-input-method-auto-switcher--current-engine emacs-input-method-auto-switcher-latin-engines)
     (let ((latin (emacs-input-method-auto-switcher--latin-engine)))
       (if (eq system-type 'darwin)  ; 判断是否是 macOS 平台
           (if (emacs-input-method-auto-switcher--detect-im-select)

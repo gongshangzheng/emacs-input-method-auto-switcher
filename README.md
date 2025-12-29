@@ -69,19 +69,20 @@
 (setq emacs-input-method-auto-switcher-framework 'fcitx5)  ; 选项：'ibus、'fcitx、'fcitx5、'squirrel
 ```
 
-### 配置非拉丁输入法引擎
+### 配置拉丁输入法白名单
 
-自定义哪些输入法引擎会触发自动切换到英文：
+默认情况下，只有以下拉丁输入法不会触发自动切换（白名单模式）：
+- `com.apple.keylayout.ABC` - macOS 拉丁输入法
+- `xkb:us::eng` - Linux fcitx5 拉丁输入法
+
+**所有其他输入法**（包括中文、日文、韩文等）都会在 Emacs 获得焦点时自动切换到对应的拉丁输入法。
+
+如果需要自定义白名单（通常不需要），可以修改：
 
 ```elisp
-(setq emacs-input-method-auto-switcher-non-latin-engines
-      '("im.rime.inputmethod.Squirrel.Hans"  ; 中文（macOS 上的 Rime）
-        "com.apple.keylayout.ABC"             ; ABC 输入法
-        "rime"                                 ; Linux 上的 Rime
-        "pinyin"                               ; 拼音
-        "mozc"                                 ; 日文
-        "anthy"                                ; 日文
-        "kkc"))                                ; 日文
+(setq emacs-input-method-auto-switcher-latin-engines
+      '("com.apple.keylayout.ABC"  ; macOS 拉丁输入法
+        "xkb:us::eng"))            ; Linux fcitx5 拉丁输入法
 ```
 
 ### macOS 专用配置
@@ -199,12 +200,14 @@ brew install im-select
    which ibus          # 或 fcitx-remote、fcitx5-remote
    ```
 
-### 自定义输入法未被识别
-将你的输入法标识符添加到 `emacs-input-method-auto-switcher-non-latin-engines`：
+### 自定义拉丁输入法白名单
+如果需要将其他输入法添加到白名单（使其不触发自动切换），可以修改：
 
 ```elisp
-(add-to-list 'emacs-input-method-auto-switcher-non-latin-engines "你的输入法名称")
+(add-to-list 'emacs-input-method-auto-switcher-latin-engines "你的拉丁输入法标识符")
 ```
+
+**注意**：只有拉丁输入法应该添加到白名单。非拉丁输入法（中文、日文等）不应该添加到白名单，它们会自动切换到拉丁输入法。
 
 查找输入法标识符的方法：
 - macOS：在终端运行 `im-select`
