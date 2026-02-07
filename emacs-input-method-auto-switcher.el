@@ -1,3 +1,4 @@
+
 ;;; emacs-input-method-auto-switcher.el --- Auto-switcher for managing input methods in Emacs -*- lexical-binding: t; -*-
 
 (defgroup emacs-input-method-auto-switcher nil
