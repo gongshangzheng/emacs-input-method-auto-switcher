@@ -57,6 +57,21 @@
    (emacs-input-method-auto-switcher-setup)
    ```
 
+## 非阻塞保证（0.3+）
+
+旧实现会在 `focus-in-hook` / `focus-out-hook` 里同步调用 `im-select`（`call-process` /
+`shell-command-to-string`，无超时）。Cmd-Tab 离开 Emacs 时主线程被外部进程阻塞，系统级别的
+应用切换会跟着卡住；焦点抖动时每次聚焦要等两个进程（实测每次 40–80 ms）。
+
+现在焦点钩子**从不阻塞**：
+
+- 每个 `im-select` 都是 `make-process` 后台进程，带看门狗（`emacs-input-method-auto-switcher-timeout`，默认 0.5s），超时直接杀掉
+- 同一时刻最多一个子进程；焦点事件在 `emacs-input-method-auto-switcher-debounce`（默认 0.15s）内合并
+- child frame（posframe 候选窗）、tty frame、不可见 frame 直接跳过
+- 找不到 `im-select` 时只提示一次并停用，不再每次聚焦报错；额外尝试 `/opt/homebrew/bin` 等常见路径
+- **默认不再在失去焦点时恢复输入法**（`emacs-input-method-auto-switcher-restore-on-focus-out` 默认 nil）。旧行为会在 Cmd-Tab 时来回切换，并且把「原输入法」记错，导致其它 app 里打不出中文。需要恢复时显式设为 t，此时只恢复真正被替换掉的那个引擎
+- `emacs-input-method-auto-switcher-debug` 设为 t 后，`*Messages*` 里会记录每次切换的 trigger、目标引擎与耗时
+
 ## 配置说明
 
 ### 基础配置

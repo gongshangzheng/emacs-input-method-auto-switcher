@@ -57,6 +57,32 @@ One of the following input method frameworks:
    (emacs-input-method-auto-switcher-setup)
    ```
 
+## Non-blocking guarantee (0.3+)
+
+The old implementation called `im-select` synchronously inside `focus-in-hook` /
+`focus-out-hook` (`call-process` / `shell-command-to-string`, no timeout). Switching
+away from Emacs could stall the main thread during application deactivation, which
+made the whole app switch freeze, and every focus change waited on two helper
+processes (40–80 ms each in practice).
+
+Focus handlers now never block:
+
+- every `im-select` call is a `make-process` background process guarded by a watchdog
+  (`emacs-input-method-auto-switcher-timeout`, default 0.5s)
+- at most one helper process at a time; events are coalesced within
+  `emacs-input-method-auto-switcher-debounce` (default 0.15s)
+- child frames (posframe candidates), tty frames and invisible frames are skipped
+- a missing helper is reported once and disables switching instead of erroring on
+  every focus change; common locations such as `/opt/homebrew/bin` are tried even
+  when `PATH` lacks them
+- **losing focus no longer restores the previous input source by default**
+  (`emacs-input-method-auto-switcher-restore-on-focus-out` defaults to nil). The old
+  behavior flipped the source back and forth on Cmd-Tab and recorded the wrong
+  "previous" engine, which left other applications unable to type Chinese. Opt in
+  with t to restore, and only the engine that was actually replaced is restored
+- set `emacs-input-method-auto-switcher-debug` to t to log trigger, target engine and
+  elapsed time to `*Messages*`
+
 ## Configuration
 
 ### Basic Configuration
