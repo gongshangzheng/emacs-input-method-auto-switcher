@@ -68,9 +68,15 @@ processes (40–80 ms each in practice).
 Focus handlers now never block:
 
 - every `im-select` call is a `make-process` background process guarded by a watchdog
-  (`emacs-input-method-auto-switcher-timeout`, default 0.5s)
+  (`emacs-input-method-auto-switcher-timeout`, default 2.0s). Measured cost on macOS
+  is 0.10-0.15s to read the current source and 0.20-0.40s to switch, so a 0.5s budget
+  killed healthy calls under load; the value only bounds how long a stuck helper
+  survives and never blocks Emacs
 - at most one helper process at a time; events are coalesced within
-  `emacs-input-method-auto-switcher-debounce` (default 0.15s)
+  `emacs-input-method-auto-switcher-debounce` (default 0.15s). A request that arrives
+  while a helper is still running is queued instead of dropped (the newest one wins)
+  and runs once the helper exits; dropping it could leave a focus-in switch undone,
+  with the user typing in the Chinese source inside Emacs
 - child frames (posframe candidates), tty frames and invisible frames are skipped
 - a missing helper is reported once and disables switching instead of erroring on
   every focus change; common locations such as `/opt/homebrew/bin` are tried even

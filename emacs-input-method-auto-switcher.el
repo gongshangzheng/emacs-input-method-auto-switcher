@@ -70,9 +70,13 @@ what other applications expect and what keeps the application switch fast."
 Rapid focus changes inside this window are coalesced into one attempt."
   :type 'number)
 
-(defcustom emacs-input-method-auto-switcher-timeout 0.5
+(defcustom emacs-input-method-auto-switcher-timeout 2.0
   "Seconds after which a helper process is killed.
-The helper is never allowed to hang: Emacs stays responsive even if it does."
+The helper is never allowed to hang: Emacs stays responsive even if it does.
+Measured `im-select' cost on macOS is 0.10-0.15s to read the current source and
+0.20-0.40s to switch, so a sub-second budget kills healthy calls under load.
+This value only bounds how long a stuck helper survives; it never blocks
+Emacs, so it is set well above the observed worst case."
   :type 'number)
 
 (defcustom emacs-input-method-auto-switcher-debug nil
@@ -104,6 +108,12 @@ A GUI Emacs started from the Dock often inherits a `PATH' without Homebrew."
 
 (defvar emacs-input-method-auto-switcher--proc nil
   "Currently running helper process.  At most one at a time.")
+
+(defvar emacs-input-method-auto-switcher--pending nil
+  "Newest request that arrived while a helper was still running.
+A cons of (ARGS . CALLBACK).  Overlapping requests overwrite each other so the
+latest intent wins, but they are not dropped: dropping a focus-in switch would
+leave the user typing in the Chinese source inside Emacs.")
 
 (defvar emacs-input-method-auto-switcher--watchdog nil
   "Timer that kills `emacs-input-method-auto-switcher--proc'.")
@@ -169,34 +179,6 @@ A GUI Emacs started from the Dock often inherits a `PATH' without Homebrew."
 
 ;;;; Background helper execution
 
-(defun emacs-input-method-auto-switcher--finish (proc start output args callback)
-  "Handle completion of PROC started at START with OUTPUT, ARGS and CALLBACK."
-  ;; A sentinel may run before the filter has drained the last chunk (see
-  ;; "Sentinel" in the Emacs Lisp manual).  The process is already finished, so
-  ;; this returns at once; the timeout is only a safety net.
-  (when (memq (process-status proc) '(exit signal failed))
-    (accept-process-output proc 0.05))
-  (when (process-get proc 'eimas-filter-output)
-    (setq output (process-get proc 'eimas-filter-output)))
-  (when (timerp emacs-input-method-auto-switcher--watchdog)
-    (cancel-timer emacs-input-method-auto-switcher--watchdog))
-  (setq emacs-input-method-auto-switcher--watchdog nil)
-  (when (eq proc emacs-input-method-auto-switcher--proc)
-    (setq emacs-input-method-auto-switcher--proc nil))
-  (let ((status (process-status proc))
-        (elapsed (round (* 1000 (- (float-time) start)))))
-    (emacs-input-method-auto-switcher--debug
-     "helper args=%S status=%s elapsed=%dms output=%S"
-     args status elapsed (string-trim (or output "")))
-    (when (memq status '(signal failed))
-      (emacs-input-method-auto-switcher--warn
-       (format "im-select %s 失败（%s）" args status)))
-    (condition-case err
-        (funcall callback status (string-trim (or output "")))
-      (error
-       (emacs-input-method-auto-switcher--warn
-        (format "处理切换结果失败: %s" err))))))
-
 (defun emacs-input-method-auto-switcher--spawn (args callback)
   "Run `im-select' with ARGS in the background, then call CALLBACK with status/output.
 Returns the process, or nil when nothing was started.  Never blocks."
@@ -207,7 +189,9 @@ Returns the process, or nil when nothing was started.  Never blocks."
        "找不到 im-select（已尝试 PATH 与 /opt/homebrew/bin 等常见路径）")
       nil)
      ((process-live-p emacs-input-method-auto-switcher--proc)
-      (emacs-input-method-auto-switcher--debug "skip: previous helper still running")
+      (emacs-input-method-auto-switcher--debug
+       "queued args=%S: previous helper still running" args)
+      (setq emacs-input-method-auto-switcher--pending (cons args callback))
       nil)
      (t
       (let ((start (float-time))
@@ -240,6 +224,45 @@ Returns the process, or nil when nothing was started.  Never blocks."
            (emacs-input-method-auto-switcher--warn
             (format "启动 %s 失败: %s" helper err))
            nil)))))))
+
+(defun emacs-input-method-auto-switcher--drain-pending ()
+  "Start the newest queued request now that no helper is running."
+  (when (and emacs-input-method-auto-switcher--pending
+             (not (process-live-p emacs-input-method-auto-switcher--proc)))
+    (let ((request emacs-input-method-auto-switcher--pending))
+      (setq emacs-input-method-auto-switcher--pending nil)
+      (emacs-input-method-auto-switcher--debug
+       "running queued request args=%S" (car request))
+      (emacs-input-method-auto-switcher--spawn (car request) (cdr request)))))
+
+(defun emacs-input-method-auto-switcher--finish (proc start output args callback)
+  "Handle completion of PROC started at START with OUTPUT, ARGS and CALLBACK."
+  ;; A sentinel may run before the filter has drained the last chunk (see
+  ;; "Sentinel" in the Emacs Lisp manual).  The process is already finished, so
+  ;; this returns at once; the timeout is only a safety net.
+  (when (memq (process-status proc) '(exit signal failed))
+    (accept-process-output proc 0.05))
+  (when (process-get proc 'eimas-filter-output)
+    (setq output (process-get proc 'eimas-filter-output)))
+  (when (timerp emacs-input-method-auto-switcher--watchdog)
+    (cancel-timer emacs-input-method-auto-switcher--watchdog))
+  (setq emacs-input-method-auto-switcher--watchdog nil)
+  (when (eq proc emacs-input-method-auto-switcher--proc)
+    (setq emacs-input-method-auto-switcher--proc nil))
+  (let ((status (process-status proc))
+        (elapsed (round (* 1000 (- (float-time) start)))))
+    (emacs-input-method-auto-switcher--debug
+     "helper args=%S status=%s elapsed=%dms output=%S"
+     args status elapsed (string-trim (or output "")))
+    (when (memq status '(signal failed))
+      (emacs-input-method-auto-switcher--warn
+       (format "im-select %s 失败（%s）" args status)))
+    (condition-case err
+        (funcall callback status (string-trim (or output "")))
+      (error
+       (emacs-input-method-auto-switcher--warn
+        (format "处理切换结果失败: %s" err)))))
+  (emacs-input-method-auto-switcher--drain-pending))
 
 (defun emacs-input-method-auto-switcher--write-engine (engine &optional callback)
   "Switch the system input source to ENGINE in the background.
@@ -457,6 +480,7 @@ finishes switching."
   (when (timerp emacs-input-method-auto-switcher--watchdog)
     (cancel-timer emacs-input-method-auto-switcher--watchdog)
     (setq emacs-input-method-auto-switcher--watchdog nil))
+  (setq emacs-input-method-auto-switcher--pending nil)
   (when (process-live-p emacs-input-method-auto-switcher--proc)
     (delete-process emacs-input-method-auto-switcher--proc)
     (setq emacs-input-method-auto-switcher--proc nil)))

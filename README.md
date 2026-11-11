@@ -65,8 +65,8 @@
 
 现在焦点钩子**从不阻塞**：
 
-- 每个 `im-select` 都是 `make-process` 后台进程，带看门狗（`emacs-input-method-auto-switcher-timeout`，默认 0.5s），超时直接杀掉
-- 同一时刻最多一个子进程；焦点事件在 `emacs-input-method-auto-switcher-debounce`（默认 0.15s）内合并
+- 每个 `im-select` 都是 `make-process` 后台进程，带看门狗（`emacs-input-method-auto-switcher-timeout`，默认 2.0s），超时直接杀掉。macOS 上实测读当前输入源 0.10–0.15s、切换输入源 0.20–0.40s，所以 0.5s 的预算在负载高时会误杀本来正常的调用；这个值只决定卡住的进程能活多久，不会阻塞 Emacs
+- 同一时刻最多一个子进程；焦点事件在 `emacs-input-method-auto-switcher-debounce`（默认 0.15s）内合并。前一个进程还在跑时到来的请求不再被丢弃，而是排队（后来的覆盖先来的），等当前进程结束后再执行——否则一次 focus-in 切换可能被丢掉，人就卡在中文输入源里
 - child frame（posframe 候选窗）、tty frame、不可见 frame 直接跳过
 - 找不到 `im-select` 时只提示一次并停用，不再每次聚焦报错；额外尝试 `/opt/homebrew/bin` 等常见路径
 - **默认不再在失去焦点时恢复输入法**（`emacs-input-method-auto-switcher-restore-on-focus-out` 默认 nil）。旧行为会在 Cmd-Tab 时来回切换，并且把「原输入法」记错，导致其它 app 里打不出中文。需要恢复时显式设为 t，此时只恢复真正被替换掉的那个引擎
